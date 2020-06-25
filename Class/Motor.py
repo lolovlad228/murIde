@@ -1,6 +1,7 @@
 import pymurapi as mur
 from Class.Math import PD, clamp, clamp_to180, Run, length
 from Class.Classificate import ColorClassif
+from Class.CompVision import detect
 from time import time, sleep
 from Class.Data import Data
 
@@ -21,8 +22,6 @@ class Motor:
             if flag:
                 return True, i, area
         return False, "None", 0
-
-    def search_platform(self):
 
     def keep_depth(self, depth_to_set):
         error = self.__avi.get_depth() - depth_to_set
@@ -63,33 +62,18 @@ class Motor:
                 sleep(0.05)
 
     def keep_front_cycle(self):
-        self.__timestemp.set_k(2)
+        self.__timestemp.set_k(0.5)
         while True:
-            flag, filter = self.search_cycle(Data().get_img_front())[:2]
+            flag, x, y, w_h = Data().get_filter("red").quadrangle(Data().get_img_front())
             if flag:
-                flag, x, y = Data().get_filter(filter).cycle(Data().get_img_front())
                 while self.__timestemp.add_item(length(x, y)):
-                    flag, x, y = Data().get_filter(filter).cycle(Data().get_img_front())
+                    flag, x, y, w_h = Data().get_filter("red").quadrangle(Data().get_img_front())
                     self.keep_x_y(x, y, 2, 3)
+                    #self.move_to_time(1, 40)
                     sleep(0.05)
                 break
             else:
                 pass
-
-    def keep_bottom_cycle(self):
-        flag, x, y = self.__yellow.cycle(Data().get_img_bottom())
-        if flag:
-            if length(x, y) < 10:
-                self.__timestemp.set_count(50)
-                while self.__timestemp.add_item(length(x, y)):
-                    flag, x, y = self.__yellow.cycle(Data().get_img_bottom())
-                    self.keep_x_y(x, y)
-                    sleep(0.05)
-                return True
-            self.keep_x_y(x, y)
-            return False
-        else:
-            self.keep_yaw(Data().get_yaw(), 40)
 
     def move_to_time(self, time_move, speed):
         tm = int(round(time() * 1000))
@@ -110,4 +94,27 @@ class Motor:
         while tm - int(round(time() * 1000)) > time_yaw * -1000:
             self.keep_yaw(yaw, 0)
             sleep(0.05)
+
+    def search_color(self):
+        st = detect()
+        info = ["red", "green", "yellow", "white", "black"]
+        tm = int(round(time() * 1000))
+        center = []
+        while tm - int(round(time() * 1000)) > 10 * -1000:
+            frame = Data().get_img_front()
+            if st == "right":
+                frame = Data().get_filter("red").right(frame)
+            else:
+                frame = Data().get_filter("red").left(frame)
+            for i in range(len(info)):
+                flag, x, y, area = Data().get_filter(info[i]).quadrangle(frame)
+                if flag:
+                    del info[i]
+                    center.append((x, y, area))
+                    break
+            if len(center) == 2:
+                break
+        print(info)
+        return center
+
 

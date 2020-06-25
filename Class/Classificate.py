@@ -22,7 +22,8 @@ class ColorClassif:
 
     def img_approximation_threshold(self, img):
         thresh = cv2.threshold(img, 140, 255, cv2.THRESH_BINARY)[1]
-        mask = cv2.inRange(thresh, self.__low, self.__high)
+        img = cv2.medianBlur(thresh, 3)
+        mask = cv2.inRange(img, self.__low, self.__high)
         return mask
 
     def __init__(self, low, high):
@@ -50,19 +51,21 @@ class ColorClassif:
             return False, 0, 0, 0
 
     def square(self, img, mode="canny", isarea="no"):
-        if mode == "canny":
-            contours = cv2.findContours(self.img_approximation_threshold(img), cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)[0]
+        if mode == "threshold":
+            contours = cv2.findContours(self.img_approximation_threshold(img), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)[0]
         else:
             contours = cv2.findContours(self.img_approximation_canny(img), cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)[0]
         center = 0
         angle = 0
         area = 0
+        w_h = 0
         for cnt in contours:
             approx = cv2.approxPolyDP(cnt, 0.01 * cv2.arcLength(cnt, True), True)
             rect = cv2.minAreaRect(cnt)
             box = cv2.boxPoints(rect)
             box = np.int0(box)
             area = int(rect[1][0] * rect[1][1])
+            w_h = (rect[1][0], rect[1][1])
             if area < 2000:
                 continue
             if len(approx) is not 4:
@@ -81,9 +84,56 @@ class ColorClassif:
         if isarea == "no":
             if center == 0:
                 return False, 0, 0, 0
-            return True, center[0] - 160, center[1] - 120, round(angle)
+            return True, center[0], center[1], round(angle)
         else:
             if center == 0:
-                return False, 0, 0, 0, 0
-            return True, center[0] - 160, center[1] - 120, round(angle), area
+                return False, 0, 0, 0, 0, 0
+            return True, center[0], center[1], round(angle), area, w_h
+
+    def triangle(self, img, mode="canny", isarea="no"):
+        if mode == "threshold":
+            contours = cv2.findContours(self.img_approximation_threshold(img), cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)[0]
+        else:
+            contours = cv2.findContours(self.img_approximation_canny(img), cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)[0]
+        center = 0
+        for cnt in contours:
+            approx = cv2.approxPolyDP(cnt, 0.02 * cv2.arcLength(cnt, True), True)
+            print(len(approx))
+            frame = cv2.imread("img/conturs.jpg")
+            frame = cv2.drawContours(frame, [approx], -1, (0, 0, 0), 4)
+            cv2.imwrite("img/conturs.jpg", frame)
+            if len(approx) == 6:
+                rect = cv2.minAreaRect(cnt)
+                center = (int(rect[0][0]), int(rect[0][1]))
+            else:
+                continue
+        if center == 0:
+            return False, 0, 0
+        else:
+            return True, center[0], center[1]
+
+    def quadrangle(self, img):
+        contours = cv2.findContours(self.img_approximation_canny(img), cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)[0]
+        center = 0
+        w_h = 0
+        for cnt in contours:
+            approx = cv2.approxPolyDP(cnt, 0.01 * cv2.arcLength(cnt, True), True)
+            rect = cv2.minAreaRect(approx)
+            box = cv2.boxPoints(rect)
+            area = int(rect[1][0] * rect[1][1])
+            if area < 500:
+                continue
+            w_h = (int(rect[1][0]), int(rect[1][1]))
+            center = (int(rect[0][0]), int(rect[0][1]))
+        if center == 0:
+            return False, 0, 0, 0
+        else:
+            return True, center[0], center[1], w_h
+
+    def left(self, img):
+        return img[0:240, 0:160]
+
+    def right(self, img):
+        return img[0:240, 160:320]
+
 
