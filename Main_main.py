@@ -203,7 +203,7 @@ class ImgClasses(metaclass=Solide):
                 platform["right"].sort(key=lambda x: x[1][0])
         if len(platform["left"]) != 0:
             print(platform)
-            if platform["left"][0][0] == "white" and platform["left"][1][0] == "red" and platform["left"][1][0] == "blue":
+            if platform["left"][0][0] == "white" and platform["left"][1][0] == "red" and platform["left"][2][0] == "blue":
                 return "left", platform["right"]
             else:
                 return "right", platform["left"]
